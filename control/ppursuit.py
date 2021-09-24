@@ -9,23 +9,34 @@ gdict = {'s' : start, 'length' : length, 'x' : x, 'y' : y, 'hdg' :hdg, 'type' : 
 """
 
 class refline:
-    def __init__(self, geometries):
+    def __init__(self, geometries): # geomoetries = [gdict1, gdict2]
         self.geometries = geometries
         self.length = 0
         for gdict in geometries:
             self.length += gdict['length']
 
-    def getpoint(self, u):
+    def getpoint(self, u, reverse = True):
         for gdict in self.geometries:
             if (gdict['s'] <= u and u <= gdict['s'] + gdict['length']):
                 l = u - gdict['s']
-                
+                if reverse:
+                    ans = gdictpoint(gdict,l)
+                    answer = ans[0], -ans[1]
+                    return answer
                 return gdictpoint(gdict,l)
+    def show(self):
+        X = []
+        Y = []
+        for u in np.arange(0, self.length, 0.1):
+            x, y = self.getpoint(u)
+            X.append(x)
+            Y.append(y)
+        plt.plot(X, Y)
 
 def LookAHead(x, y, road, hdg, ld):
     u0 = ternarySearch(x, y, road)
 
-    l = u
+    l = u0
     r = road.length
     
     while (r - l > 0.2):
@@ -52,9 +63,22 @@ def pstep(state, target):
     x = np.cos(yaw)*xw + np.sin(yaw)*yw
     y = np.cos(yaw)*yw - np.sin(yaw)*xw
 
-    gamma = 2*x/ls
+    gamma = 2*y/ls
 
     steer_angle = np.arctan(gamma)
     steer_control = steer_angle / STEER_GAIN
 
     return steer_control
+
+def ppsuit(state, road, ld = 10, target = False):
+    x = state[0]
+    y = state[1]
+    hdg = state[2]
+    
+    target = LookAHead(x, y, road, hdg, ld)
+    
+    nextSteer = pstep(state, target)
+    
+    if target:
+        return nextSteer, target
+    return nextSteer
