@@ -320,6 +320,7 @@ class ClientSideBoundingBoxes(object):
 # ==============================================================================
 
 
+
 class BasicSynchronousClient(object):
     """
     Basic implementation of a synchronous client.
@@ -436,6 +437,17 @@ class BasicSynchronousClient(object):
         lidar_transform = carla.Transform(lidar_location,lidar_rotation)
         self.lidar_sen = self.world.spawn_actor(self.lidar_bp(),lidar_transform,attach_to=ego_vehicle,attachment_type=carla.AttachmentType.Rigid)
         self.lidar_sen.listen(lambda point_cloud: point_cloud.save_to_disk(save_path+'new_lidar_output/%.6d.ply' % point_cloud.frame))
+
+    def control2(self, car, control):
+        """
+        Applies control to main car based on pygame pressed keys.
+        Will return True If ESCAPE is hit, otherwise False to end main loop.
+        """
+        if control == "end":
+            return True
+
+        car.apply_control(control)
+        return False
 
     def control(self, car):
         """

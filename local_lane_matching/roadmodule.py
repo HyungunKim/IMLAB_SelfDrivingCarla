@@ -10,7 +10,7 @@ from geomodule import *
 
 #tree = elemTree.parse("Town06.xodr")
 iload_world = "Town01"
-tree = elemTree.parse(f"{iload_world}.xodr")
+tree = elemTree.parse(f"hdmap/{iload_world}.xodr")
 roads = []
 for road in tree.findall("road"):
     roads.append(road)
