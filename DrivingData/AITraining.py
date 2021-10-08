@@ -53,10 +53,23 @@ try:
     import pygame
     from pygame.locals import K_ESCAPE
     from pygame.locals import K_SPACE
+    from pygame.locals import KMOD_CTRL
     from pygame.locals import K_a
     from pygame.locals import K_d
     from pygame.locals import K_s
     from pygame.locals import K_w
+    from pygame.locals import K_p
+    from pygame.locals import K_0
+    from pygame.locals import K_1
+    from pygame.locals import K_2
+    from pygame.locals import K_3
+    from pygame.locals import K_4
+    from pygame.locals import K_5
+    from pygame.locals import K_6
+    from pygame.locals import K_7
+    from pygame.locals import K_8
+    from pygame.locals import K_9
+
 except ImportError:
     raise RuntimeError('cannot import pygame, make sure pygame package is installed')
 
@@ -92,9 +105,11 @@ if ServerSetting:
     lidar_rot = 60
 
     use_bbox = False
-    use_XYH = True
+    use_XYH = False
 
-    num_npc = 1
+    num_npc = 9
+    use_autopilot = False
+    use_autopilots = [False]*(num_npc + 1)
 
     fixed_delta_seconds = 0.1
     pygamefps = 60 
@@ -102,7 +117,7 @@ if ServerSetting:
     save_path = f'C:/CARLA_0.9.10/WindowsNoEditor/PythonAPI/examples/Saved/top_view/record_{len(os.listdir("C:/CARLA_0.9.10/WindowsNoEditor/PythonAPI/examples/Saved/top_view/"))+1}/'
     os.makedirs(save_path)
 
-if False:
+if True:
     load_world = "Town06"
 else:
     load_world = None
@@ -320,6 +335,8 @@ class BasicSynchronousClient(object):
         self.display = None
         self.image = None
         self.capture = True
+        self.car_number = num_npc
+        self.use_autopilots = use_autopilots
 
     def camera_blueprint(self):
         """
@@ -364,6 +381,7 @@ class BasicSynchronousClient(object):
         try:
             location = random.choice(self.spawn_points)
             self.car = self.world.spawn_actor(car_bp, location)
+            self.npc_list.append(self.car.id)
         except:
             print("collision in spawn point")
             self.setup_car()
@@ -385,20 +403,24 @@ class BasicSynchronousClient(object):
             blueprint = random.choice(blueprints)
             #batch.append(carla.command.SpawnActor(blueprint, transform))
             blueprint.set_attribute('role_name', 'autopilot')
-            batch.append(carla.command.SpawnActor(blueprint, transform).then(SetAutoPilot(FutureActor,False)))
+            batch.append(carla.command.SpawnActor(blueprint, transform).then(SetAutoPilot(FutureActor,self.use_autopilots[n])))
             self.spawn_points.pop(0)
 
         for response in self.client.apply_batch_sync(batch):
             self.npc_list.append(response.actor_id)
 
-    def setup_camera(self):
+    def setup_camera(self, attach_to=None):
         """
         Spawns actor-camera to be used to render view.
         Sets calibration for client-side boxes rendering.
         """
+        if attach_to is None:
+            attach_to = self.car
+        if self.camera is not None:
+            self.camera.destroy()    
 
         camera_transform = carla.Transform(camloc, camrot)
-        self.camera = self.world.spawn_actor(self.camera_blueprint(), camera_transform, attach_to=self.car)
+        self.camera = self.world.spawn_actor(self.camera_blueprint(), camera_transform, attach_to=attach_to)
         weak_self = weakref.ref(self)
         self.camera.listen(lambda image: weak_self().set_image(weak_self, image))
 
@@ -440,6 +462,27 @@ class BasicSynchronousClient(object):
         else:
             control.steer = 0
         control.hand_brake = keys[K_SPACE]
+
+        numkeys = [keys[K_0], keys[K_1], keys[K_2], keys[K_3], keys[K_4], keys[K_5], keys[K_6], keys[K_7], keys[K_8], keys[K_9]]
+
+        for i, k in enumerate(numkeys):
+            if k:
+                car_id = self.npc_list[i]
+                print("Car ID is: ", car_id)
+                print("####")
+                self.car = self.world.get_actor(car_id)
+                car = self.car
+                self.setup_camera()
+                self.car_number = i
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYUP:
+                if event.key == K_p and not pygame.key.get_mods() & KMOD_CTRL:
+                    self.use_autopilots[self.car_number] = not self.use_autopilots[self.car_number]
+                    car.set_autopilot(self.use_autopilots[self.car_number])
+                    print(self.use_autopilots[self.car_number])
+
+                
 
         car.apply_control(control)
         return False
