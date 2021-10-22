@@ -24,7 +24,7 @@ import queue
 import math
 from carla import ColorConverter as cc
 
-import navigation.behavior_agent as agent
+import agents.navigation.behavior_agent as agent
 
 try:
     import pygame
@@ -85,9 +85,9 @@ if ServerSetting:
     use_bbox = False
     use_XYH = False
 
-    num_npc = 200
+    num_npc = 100
     use_autopilot = True
-    use_autopilots = [use_autopilot]*(num_npc + 1)
+    use_autopilots = [use_autopilot]*num_npc 
 
     bad_driving_prob = 100 #%
 
@@ -96,7 +96,7 @@ if ServerSetting:
     ignore_vehicles = 60 #%
     lane_change_prob = 0 #%
 
-
+    use_agent_control = False
     use_waypoints = True
 
     fixed_delta_seconds = 0.1
@@ -372,6 +372,7 @@ class BasicSynchronousClient(object):
         self.camera = None
         self.car = None
         self.npc_list = []
+        self.agent_list = []
         self.spawn_points = []
         self.display = None
         self.image = None
@@ -453,6 +454,7 @@ class BasicSynchronousClient(object):
 
         for response in self.client.apply_batch_sync(batch):
             self.npc_list.append(response.actor_id)
+            self.agent_list.append(agent.BehaviorAgent(self.world.get_actor(response.actor_id), ignore_traffic_light=random.choice([True] + [False]*3), behavior=random.choice(['normal']*3 + ['cautious'] + ['aggressive'])))
 
     def setup_camera(self, attach_to=None):
         """
@@ -543,6 +545,14 @@ class BasicSynchronousClient(object):
         car.apply_control(control)
 
         return False
+
+    def agent_control(self):
+        for i, agnt in enumerate(self.agent_list):
+            agnt.update_information()
+            if self.use_autopilots[i]:
+                control = agnt.run_step()
+                print(control)
+                agnt.vehicle.apply_control(control)
 
     @staticmethod
     def draw_waypoints(self, car):
@@ -665,7 +675,9 @@ class BasicSynchronousClient(object):
                 if bad_driving_prob > 0:
                     ClientSideBoundingBoxes.bad_driving(self, in_loop=True)
 
-                
+                if use_agent_control:
+                    self.agent_control()
+
 
                 counter += 1
                 pygame.display.flip()
