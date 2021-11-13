@@ -1,0 +1,127 @@
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <iostream>
+
+#define vi vector<int>
+
+using namespace std;
+
+vector<vi> v2i; // position vector to index;
+vector<vi> i2v; // position vector to index;
+vector<bool> idxwall;
+vector<vi> distances;
+vector<bool> matched;
+vi ridx;
+
+int N;
+
+void init(int n, vector<vi> walls, vector<vi> riders) {
+   v2i = vector<vi>(n, vi(n));
+   i2v = vector<vi>(n*n, vi(2));
+   N = n;
+   int idx{};
+   for (int i = 0; i < n; i++) {
+      for (int j = 0; j < n; j++) {
+         v2i[i][j] = idx;
+         i2v[idx] = { i, j };
+         idx++;
+      }
+   }
+   distances.resize(N*N, vi(N * N, 10001));
+
+   for (int i = 0; i < N * N; i++) {
+      distances[i][i] = 0;
+   }
+
+   idxwall.resize(n*n, false);
+
+   for (auto wall : walls) {
+      int widx = v2i[wall[0]][wall[1]];
+      idxwall[widx] = true;
+   }
+
+   for (int i = 0; i < (int)riders.size(); i++) {
+      ridx.push_back(v2i[riders[i][0]][riders[i][1]]);
+   }
+   sort(ridx.begin(), ridx.end());
+}
+
+
+void getneighbors() {
+   for (int i = 0; i < N - 1; i++) {
+      for (int j = 0; j < N - 1; j++) {
+         int idx = v2i[i][j];
+         
+         int nidx1 = v2i[i + 1][j];
+         int nidx2 = v2i[i][j + 1];
+         if (!idxwall[nidx1]) {
+            distances[idx][nidx1] = 1;
+            distances[nidx1][idx] = 1;
+         }
+         if (!idxwall[nidx2]) {
+            distances[idx][nidx2] = 1;
+            distances[nidx2][idx] = 1;
+         }
+      }
+   }
+}
+
+void floydwarshall() {
+   for (int k = 0; k < N*N; k++) {
+      for (int i = 0; i < N * N; i++) {
+         for (int j = 0; j < N * N; j++) {
+            if (distances[i][j] > distances[i][k] + distances[k][j]) {
+               distances[i][j] = distances[i][k] + distances[k][j];
+            }
+         }
+      }
+   }
+}
+
+
+
+int solution(int n, vector<vector<int>> walls, vector<vector<int>> riders, vector<vector<int>> s, vector<vector<int>> e) {
+   int answer = 0;
+   init(n, walls, riders);
+   getneighbors();
+   floydwarshall();
+
+
+   // 필수 적으로 가야 하는 거리
+   int min_dists{};
+
+   for (int i = 0; i < (int)riders.size(); i++) {
+      vi spos = s[i];
+      vi epos = e[i];
+      int sidx = v2i[spos[0]][spos[1]];
+      int eidx = v2i[epos[0]][epos[1]];
+
+      min_dists += distances[sidx][eidx];
+   }
+
+   // Brute Force Matching 활용, Bipartite Matching 을 활용하면 더 효율적이나 구현하기 쉬운 방법 활용
+   int min_rider{10001};
+
+   do {
+      int curr_rider{};
+      for (int i = 0; i < (int)riders.size(); i++) {
+         vi spos = s[i];
+         int sidx = v2i[spos[0]][spos[1]];
+         curr_rider += distances[ridx[i]][sidx];;
+      }
+      if (min_rider > curr_rider) min_rider = curr_rider;
+   } while (next_permutation(ridx.begin(), ridx.end()));
+   answer = min_dists + min_rider;
+   return answer;
+}
+
+int main() {
+   int n = 6;
+   vector<vector<int>> walls = { {0, 3}, {1, 1}, {2, 4}, {2, 5}, {3, 0}, {3, 1}, {3, 2}, {4, 4}, {5, 3}};
+   vector<vector<int>> riders = { {2, 0}, {1, 3}, {4, 1}};
+   vector<vector<int>> s = { {0, 1}, {2, 1}, {5, 1} };;
+   vector<vector<int>> e = { {5, 4}, {4, 2}, {1, 4} };;
+   cout << solution(n, walls, riders, s, e);
+   return 0;
+}
